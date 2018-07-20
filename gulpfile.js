@@ -21,9 +21,20 @@ gulp.task('clean', function () {
         .pipe($.clean());
 });
 
-gulp.task('copyHTML',function(){
-    return gulp.src('./source/**/*.html')
-      .pipe(gulp.dest('./public/'))
+gulp.task('copyJS',function(){
+    return gulp.src('./source/js/package/*.js')
+      .pipe($.if(options.env === 'production',$.uglify({
+        compress:{
+            drop_console: true
+        }
+    })))
+      .pipe(gulp.dest('./public/js'))
+})
+
+gulp.task('copyCSS',function(){
+    return gulp.src('./source/scss/theme/*.css')
+      .pipe($.if(options.env === 'production', $.cleanCss()))
+      .pipe(gulp.dest('./public/css'))
 })
 
 gulp.task('jade', function() {
@@ -43,7 +54,7 @@ gulp.task('jade', function() {
         autoprefixer({browsers: ['last 3 version', '> 5%', 'ie 8']})
     ];
 
-    return gulp.src('./source/scss/**/*.scss')
+    return gulp.src('./source/scss/*.scss')
       .pipe($.plumber())
       .pipe($.sourcemaps.init())
       .pipe($.sass().on('error', $.sass.logError))
@@ -56,7 +67,7 @@ gulp.task('jade', function() {
   });
 
   gulp.task('babel', () =>
-    gulp.src('./source/js/**/*.js')
+    gulp.src('./source/js/*.js')
         .pipe($.sourcemaps.init())
         .pipe($.babel({
             presets: ['env']
@@ -76,12 +87,12 @@ gulp.task('bower', function() {
         .pipe(gulp.dest('./.tmp/vendors'))
 });
 
-gulp.task('vendorJs', ['bower'], function() {
-    return gulp.src('./.tmp/vendors/**/**.js')
-    .pipe($.concat('vendors.js'))
-    .pipe($.if(options.env === 'production',$.uglify()))
-    .pipe(gulp.dest('./public/js'))
-})
+// gulp.task('vendorJs', ['bower'], function() {
+//     return gulp.src('./.tmp/vendors/**/**.js')
+//     .pipe($.concat('vendors.js'))
+//     .pipe($.if(options.env === 'production',$.uglify()))
+//     .pipe(gulp.dest('./public/js'))
+// })
 
   gulp.task('browser-sync', function() {
     browserSync.init({
@@ -102,5 +113,10 @@ gulp.task('image-min', () =>
     gulp.watch('./source/js/**/*.js', ['babel']);
   });
 
-  gulp.task('build', gulpSequence('clean', 'jade', 'sass', 'babel', 'vendorJs'))
-  gulp.task('default', ['jade', 'sass', 'babel', 'vendorJs', 'browser-sync', 'image-min', 'watch']);
+  gulp.task('deploy', function() {
+    return gulp.src('./public/**/*')
+      .pipe(ghPages());
+  });
+
+  gulp.task('build', gulpSequence('clean', 'jade', 'copyJS', 'copyCSS', 'sass', 'babel'))
+  gulp.task('default', ['jade', 'copyJS', 'copyCSS', 'sass', 'babel', 'browser-sync', 'image-min', 'watch']);
