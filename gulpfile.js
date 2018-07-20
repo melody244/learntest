@@ -38,78 +38,50 @@ gulp.task('jade', function() {
       .pipe(browserSync.stream());
   });
 
-  gulp.task('babel', function () {
-    return gulp.src(['./source/javascripts/**/*.js'])
+  gulp.task('sass', function () {
+    var plugins = [
+        autoprefixer({browsers: ['last 3 version', '> 5%', 'ie 8']})
+    ];
+
+    return gulp.src('./source/scss/**/*.scss')
       .pipe($.plumber())
       .pipe($.sourcemaps.init())
-      .pipe($.concat('all.js'))
-      .pipe($.babel({
-        presets: ['es2015']
-      }))
-      .pipe(
-          $.if(options.env === 'production', $.uglify({
-            compress: {
-              drop_console: true
-            }
-          })
-        )
-      )
+      .pipe($.sass().on('error', $.sass.logError))
+       //編譯完成css
+      .pipe($.postcss(plugins))
+      .pipe($.if(options.env === 'production', $.cleanCss()))
       .pipe($.sourcemaps.write('.'))
-      .pipe(gulp.dest('./public/js'))
-      .pipe(browserSync.reload({
-        stream: true
-      }));
+      .pipe(gulp.dest('./public/css'))
+      .pipe(browserSync.stream());
   });
+
+  gulp.task('babel', () =>
+    gulp.src('./source/js/**/*.js')
+        .pipe($.sourcemaps.init())
+        .pipe($.babel({
+            presets: ['env']
+        }))
+        .pipe($.concat('all.js'))
+        .pipe($.if(options.env === 'production',$.uglify({
+            compress:{
+                drop_console: true
+            }
+        })))
+        .pipe($.sourcemaps.write('.'))
+        .pipe(gulp.dest('./public/js'))
+);
 
 gulp.task('bower', function() {
     return gulp.src(mainBowerFiles())
-    .pipe(gulp.dest('./.tmp/vendors'));
-    cb(err);
+        .pipe(gulp.dest('./.tmp/vendors'))
 });
 
-gulp.task('vendorJs', ['bower'], function () {
-    return gulp.src([
-      './.tmp/vendors/**/**.js',
-      './node_modules/bootstrap/dist/js/bootstrap.bundle.min.js'
-    ])
-    .pipe($.order([
-      'jquery.js'
-    ]))
-    .pipe($.concat('vendor.js'))
-    .pipe($.if(options.env === 'production', $.uglify()))
+gulp.task('vendorJs', ['bower'], function() {
+    return gulp.src('./.tmp/vendors/**/**.js')
+    .pipe($.concat('vendors.js'))
+    .pipe($.if(options.env === 'production',$.uglify()))
     .pipe(gulp.dest('./public/js'))
-  })
-
-  gulp.task('sass', function () {
-    // PostCSS AutoPrefixer
-    var processors = [
-      autoprefixer({
-        browsers: ['last 5 version'],
-      })
-    ];
-  
-    return gulp.src(['./source/stylesheets/**/*.sass', './source/stylesheets/**/*.scss'])
-      .pipe($.plumber())
-      .pipe($.sourcemaps.init())
-      .pipe($.sass({ 
-        outputStyle: 'nested',
-        includePaths: ['./node_modules/bootstrap/scss']
-      })
-        .on('error', $.sass.logError))
-      .pipe($.postcss(processors))
-      .pipe($.if(options.env === 'production', $.minifyCss())) // 假設開發環境則壓縮 CSS
-      .pipe($.sourcemaps.write('.'))
-      .pipe(gulp.dest('./public/css'))
-      .pipe(browserSync.reload({
-        stream: true
-      }));
-  });
-
-  gulp.task('image-min', () =>
-    gulp.src('./source/images/*')
-        .pipe($.if(options.env === 'production',$.imagemin()))
-        .pipe(gulp.dest('./public/images'))
-);
+})
 
   gulp.task('browser-sync', function() {
     browserSync.init({
@@ -118,16 +90,17 @@ gulp.task('vendorJs', ['bower'], function () {
     });
 });
 
-gulp.task('watch', function () {
-    gulp.watch(['./source/stylesheets/**/*.sass', './source/stylesheets/**/*.scss'], ['sass']);
-    gulp.watch(['./source/**/*.jade'], ['jade']);
-    gulp.watch(['./source/js/**/*.js'], ['babel']);
+gulp.task('image-min', () =>
+    gulp.src('./source/images/*')
+        .pipe($.if(options.env === 'production',$.imagemin()))
+        .pipe(gulp.dest('./public/images'))
+);
+
+  gulp.task('watch', function () {
+    gulp.watch('./source/scss/**/*.scss', ['sass']);
+    gulp.watch('./source/**/*.jade', ['jade']);
+    gulp.watch('./source/js/**/*.js', ['babel']);
   });
 
-  gulp.task('deploy', function() {
-    return gulp.src('./public/**/*')
-      .pipe($.ghPages());
-  });
-
-  gulp.task('build', gulpSequence('clean', 'jade', 'sass', 'babel', 'vendorJs', 'imageMin'))
+  gulp.task('build', gulpSequence('clean', 'jade', 'sass', 'babel', 'vendorJs'))
   gulp.task('default', ['jade', 'sass', 'babel', 'vendorJs', 'browser-sync', 'image-min', 'watch']);
