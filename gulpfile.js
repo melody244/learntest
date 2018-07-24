@@ -115,7 +115,7 @@ gulp.task('image-min', () =>
 
   gulp.task('deploy', function() {
     return gulp.src('./public/**/*')
-      .pipe(ghPages());
+      .pipe($.ghPages());
   });
 
   gulp.task('build', gulpSequence('clean', 'jade', 'copyJS', 'copyCSS', 'sass', 'babel'))
